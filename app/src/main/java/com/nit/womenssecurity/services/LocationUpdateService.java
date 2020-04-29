@@ -9,6 +9,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -16,6 +17,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -42,22 +44,35 @@ import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.location.SettingsClient;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnCanceledListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
+import com.google.maps.android.SphericalUtil;
 import com.nit.womenssecurity.activity.MainActivity;
 import com.nit.womenssecurity.R;
+import com.nit.womenssecurity.pojos.UserLocation;
+import com.nit.womenssecurity.utils.ShakeDetector;
+import com.nit.womenssecurity.utils.WSFirebase;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 
-public class BackgroundLocationUpdateService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
+public class LocationUpdateService extends Service implements ShakeDetector.Listener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
 
     private final String TAG = "BackgroundLocationUpdateService";
     private final String TAG_LOCATION = "TAG_LOCATION";
     private Context context;
     private boolean stopService = false;
+    public static int interVal = 50;
+    public static int maxDistance = 500;
 
     /* For Google Fused API */
     protected GoogleApiClient mGoogleApiClient;
@@ -72,11 +87,21 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
 
     private LocationManager lm;
 
+    private SensorManager manager;
+    private ShakeDetector shakeDetector;
+    private int counting = 0;
+    private boolean alert = false;
+
+    private String userId;
+
     @Override
     public void onCreate() {
         super.onCreate();
         context = this;
         lm = (LocationManager)context.getSystemService(Context.LOCATION_SERVICE);
+        manager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        shakeDetector = new ShakeDetector(this);
+        userId = WSFirebase.getAuth().getUid();
     }
 
     @Override
@@ -84,6 +109,7 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
         if (!isLocationServiceEnabled()) {
             showNotification();
         }
+        shakeDetector.start(manager);
         final Handler handler = new Handler();
         final Runnable runnable = new Runnable() {
 
@@ -110,6 +136,61 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
         return START_STICKY;
     }
 
+    @Override
+    public void hearShake() {
+
+        if (counting > 0 && !alert) {
+            Toast.makeText(this, "Alert", Toast.LENGTH_SHORT).show();
+            alert = true;
+            LocationUpdateService.interVal = 5;
+            startAlertProcess();
+        } else {
+            new CountDownTimer(10000, 1000) {
+
+                public void onTick(long millisUntilFinished) {
+                    counting = (int) millisUntilFinished / 1000;
+                }
+
+                public void onFinish() {
+                    counting = 0;
+                    alert = false;
+                }
+
+            }.start();
+        }
+
+    }
+
+    private void startAlertProcess() {
+
+        WSFirebase.userLocation().addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    Date date = new Date(System.currentTimeMillis() - 500 * 1000);
+                    long time = date.getTime();
+                    List<UserLocation>  locations = new ArrayList<>();
+                    for (DataSnapshot d: dataSnapshot.getChildren()) {
+                        UserLocation location = d.getValue(UserLocation.class);
+                        assert location != null;
+                        int distance = (int) SphericalUtil.computeDistanceBetween(new LatLng(Double.parseDouble(latitude), Double.parseDouble(longitude)), new LatLng(location.getLat(), location.getLon()));
+
+                        if (!location.equals(userId) && location.getTime() > time && distance < maxDistance) {
+                            locations.add(location);
+                        }
+
+                    }
+                    Toast.makeText(context, ""+ locations.size(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
+    }
+
     private boolean isLocationServiceEnabled() {
         try {
           return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
@@ -117,6 +198,7 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
             return false;
         }
     }
+
 
     @SuppressLint("LongLogTag")
     @Override
@@ -127,6 +209,7 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
             Log.e(TAG_LOCATION, "Location Update Callback Removed");
         }
+        shakeDetector.stop();
         super.onDestroy();
     }
 
@@ -170,7 +253,6 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
 
     @Override
     public void onLocationChanged(Location location) {
-        Log.e(TAG_LOCATION, "Location Changed Latitude : " + location.getLatitude() + "\tLongitude : " + location.getLongitude());
 
         latitude = String.valueOf(location.getLatitude());
         longitude = String.valueOf(location.getLongitude());
@@ -178,10 +260,15 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
         if (latitude.equalsIgnoreCase("0.0") && longitude.equalsIgnoreCase("0.0")) {
             requestLocationUpdate();
         } else {
-            Log.e(TAG_LOCATION, "Latitude : " + location.getLatitude() + "\tLongitude : " + location.getLongitude());
-            Toast.makeText(context, "Latitude : " + location.getLatitude() + "\tLongitude : " + location.getLongitude(), Toast.LENGTH_SHORT).show();
+            Date date = new Date();
+            long time = date.getTime();
+            String userId = WSFirebase.getAuth().getUid();
+            UserLocation loc = new UserLocation(userId, time, location.getLatitude(), location.getLongitude());
+            assert userId != null;
+            WSFirebase.userLocation().child(userId).setValue(loc);
         }
     }
+
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -201,7 +288,7 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(50 * 1000);
+        mLocationRequest.setInterval(interVal * 1000);
         mLocationRequest.setFastestInterval(5 * 1000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
@@ -289,4 +376,5 @@ public class BackgroundLocationUpdateService extends Service implements GoogleAp
     private void requestLocationUpdate() {
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
     }
+
 }

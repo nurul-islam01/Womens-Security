@@ -21,4 +21,9 @@ public class WSFirebase {
     public static DatabaseReference user() {
         return reference().child("USERS");
     }
+
+    public static DatabaseReference userLocation() { return reference().child("USERS_LOCATION");}
+
+    public static DatabaseReference userToken() { return reference().child("USERS_TOKEN");}
+
 }

@@ -22,7 +22,10 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
 import com.nit.womenssecurity.R;
+import com.nit.womenssecurity.pojos.DeviceToken;
 import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.utils.WSFirebase;
 import com.nit.womenssecurity.utils.WSPreference;
@@ -93,7 +96,7 @@ public class LoginActivity extends AppCompatActivity {
                             @Override
                             public void onComplete(@NonNull Task<AuthResult> task) {
                                 if (task.isSuccessful()) {
-                                    getUser(auth.getUid());
+                                    saveUser(auth.getUid());
                                 }
                             }
                         }).addOnFailureListener(new OnFailureListener() {
@@ -119,7 +122,18 @@ public class LoginActivity extends AppCompatActivity {
 
     }
 
-    private void getUser(String userId) {
+    private void saveUser(String userId) {
+
+        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(new OnCompleteListener<InstanceIdResult>() {
+            @Override
+            public void onComplete(@NonNull Task<InstanceIdResult> task) {
+                if (task.isSuccessful()) {
+                    DeviceToken token = new DeviceToken(userId, task.getResult().getToken());
+                    WSFirebase.userToken().child(userId).setValue(token);
+                }
+            }
+        });
+
         WSFirebase.user().child(userId).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {

@@ -17,13 +17,9 @@ import android.widget.Toast;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.navigation.NavigationView;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.nit.womenssecurity.R;
 import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.receiver.LocationProviderChangedReceiver;
-import com.nit.womenssecurity.services.BackgroundLocationUpdateService;
-import com.nit.womenssecurity.services.TrackingService;
 import com.nit.womenssecurity.utils.ShakeDetector;
 import com.nit.womenssecurity.utils.TrackingActivator;
 import com.nit.womenssecurity.utils.WSFirebase;
@@ -102,6 +98,7 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
             }
             locationBroadCast();
         }
+
     }
 
     private void getUser() {
@@ -209,8 +206,7 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         WSFirebase.getAuth().signOut();
         wsPreference.removeWsPref();
 
-        stopService(new Intent(this, TrackingService.class));
-        stopService(new Intent(this, BackgroundLocationUpdateService.class));
+        trackingActivator.stopTracking();
         LocalBroadcastManager.getInstance(this).unregisterReceiver(new LocationProviderChangedReceiver());
 
         Toast.makeText(this, "Logout", Toast.LENGTH_SHORT).show();

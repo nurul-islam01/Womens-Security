@@ -13,7 +13,7 @@ public class ShakeDetector implements SensorEventListener {
     public static final int SENSITIVITY_MEDIUM = 13;
     public static final int SENSITIVITY_HARD = 15;
 
-    private static final int DEFAULT_ACCELERATION_THRESHOLD = SENSITIVITY_HARD;
+    private static final int DEFAULT_ACCELERATION_THRESHOLD = SENSITIVITY_LIGHT;
 
 
     private int accelerationThreshold = DEFAULT_ACCELERATION_THRESHOLD;

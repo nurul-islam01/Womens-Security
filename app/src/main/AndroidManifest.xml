@@ -3,9 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.nit.womenssecurity">
 
-    <uses-sdk
-        android:targetSdkVersion="29"
-        tools:ignore="GradleOverrides" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -28,7 +25,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".activity.SettingActivity"></activity>
+        <activity android:name=".activity.SettingActivity"
+            android:label="Settings"
+            android:parentActivityName=".activity.MainActivity"/>
+
         <activity android:name=".activity.ForegetPasswordActivity" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".activity.SignupActivity" android:theme="@style/AppTheme.NoActionBar"/>
         <activity android:name=".activity.LoginActivity" android:theme="@style/AppTheme.NoActionBar"/>
@@ -45,11 +45,7 @@
         </receiver>
 
         <service
-            android:name=".services.BackgroundLocationUpdateService"
-            android:enabled="true"
-            android:exported="true" />
-        <service
-            android:name=".services.TrackingService"
+            android:name=".services.LocationUpdateService"
             android:enabled="true"
             android:exported="true" />
 
@@ -63,6 +59,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".services.WSMessageService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+
     </application>
 
 </manifest>
