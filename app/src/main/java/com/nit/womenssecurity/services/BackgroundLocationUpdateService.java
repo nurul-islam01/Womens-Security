@@ -45,7 +45,7 @@ import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.tasks.OnCanceledListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.nit.womenssecurity.MainActivity;
+import com.nit.womenssecurity.activity.MainActivity;
 import com.nit.womenssecurity.R;
 
 import java.util.concurrent.TimeUnit;

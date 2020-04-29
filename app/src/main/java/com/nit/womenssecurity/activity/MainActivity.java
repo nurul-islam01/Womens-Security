@@ -1,4 +1,4 @@
-package com.nit.womenssecurity;
+package com.nit.womenssecurity.activity;
 
 import android.Manifest;
 import android.content.BroadcastReceiver;
@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.Menu;
 import android.widget.Toast;
@@ -16,11 +17,19 @@ import android.widget.Toast;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.nit.womenssecurity.R;
+import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.receiver.LocationProviderChangedReceiver;
 import com.nit.womenssecurity.services.BackgroundLocationUpdateService;
 import com.nit.womenssecurity.services.TrackingService;
 import com.nit.womenssecurity.utils.ShakeDetector;
+import com.nit.womenssecurity.utils.TrackingActivator;
+import com.nit.womenssecurity.utils.WSFirebase;
+import com.nit.womenssecurity.utils.WSPreference;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -44,11 +53,17 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
     private AppBarConfiguration mAppBarConfiguration;
     private SweetAlertDialog alertDialog;
     private LocationManager lm;
+    private WSPreference wsPreference;
+    private TrackingActivator trackingActivator;
+    private User user;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        loginCheck();
         setContentView(R.layout.activity_main);
+        getUser();
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         FloatingActionButton fab = findViewById(R.id.fab);
@@ -74,18 +89,39 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
 
+        trackingActivator = new TrackingActivator(this);
+
         if (!checkLocationPermission()) {
             permissionDialog();
-        } else {
-            if (isLocationServiceEnable()) {
-                startService(new Intent(this, BackgroundLocationUpdateService.class));
-            } else {
+        } else if (checkLocationPermission()){
+            if (!isLocationServiceEnable()) {
                 showLocationDialog();
             }
+            if (wsPreference.getTracking() && isLocationServiceEnable()) {
+                trackingActivator.startTracking();
+            }
+            locationBroadCast();
         }
-        startService(new Intent(this, TrackingService.class));
-        locationBroadCast();
     }
+
+    private void getUser() {
+        Intent data = getIntent();
+        if (data.getSerializableExtra("user") != null) {
+            User user = (User) data.getSerializableExtra("user");
+            this.user = user;
+        }
+    }
+
+     private void loginCheck() {
+        wsPreference = new WSPreference(this);
+
+        if (wsPreference.getUser() == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+        } else {
+            this.user = wsPreference.getUser();
+        }
+     }
 
     private void showLocationDialog() {
         alertDialog.changeAlertType(SweetAlertDialog.WARNING_TYPE);
@@ -120,13 +156,11 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
             @Override
             public void onReceive(Context context, Intent intent) {
                 boolean locationProviderState = intent.getBooleanExtra(IS_LOCATION_ENABLED, false);
-                if (locationProviderState) {
-                    startService(new Intent(MainActivity.this, BackgroundLocationUpdateService.class));
-                    Toast.makeText(context, "Location Enabled", Toast.LENGTH_SHORT).show();
-                } else {
-                    showLocationDialog();
-                    Toast.makeText(context, "Location Disabled", Toast.LENGTH_SHORT).show();
+                if (locationProviderState && wsPreference.getTracking()) {
+                    trackingActivator.startTracking();
                 }
+                String text = locationProviderState ? "Enabled" : "Disabled";
+                Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
             }
         }, intentFilter);
     }
@@ -155,6 +189,33 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.main, menu);
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                startActivity(new Intent(this, SettingActivity.class));
+                break;
+            case R.id.action_logout:
+                logoutManage();
+                break;
+
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void logoutManage() {
+        WSFirebase.getAuth().signOut();
+        wsPreference.removeWsPref();
+
+        stopService(new Intent(this, TrackingService.class));
+        stopService(new Intent(this, BackgroundLocationUpdateService.class));
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(new LocationProviderChangedReceiver());
+
+        Toast.makeText(this, "Logout", Toast.LENGTH_SHORT).show();
+        startActivity(new Intent(this, LoginActivity.class));
+        finish();
     }
 
     @Override
