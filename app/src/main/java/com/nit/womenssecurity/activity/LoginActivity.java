@@ -143,6 +143,7 @@ public class LoginActivity extends AppCompatActivity {
 
                     User user = dataSnapshot.getValue(User.class);
                     Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     wsPreference.setUser(user);
                     wsPreference.saveTacking(true);
                     startActivity(intent);

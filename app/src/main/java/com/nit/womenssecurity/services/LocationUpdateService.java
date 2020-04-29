@@ -175,7 +175,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                         assert location != null;
                         int distance = (int) SphericalUtil.computeDistanceBetween(new LatLng(Double.parseDouble(latitude), Double.parseDouble(longitude)), new LatLng(location.getLat(), location.getLon()));
 
-                        if (!location.equals(userId) && location.getTime() > time && distance < maxDistance) {
+                        if (!location.getUserId().equals(userId) && time < location.getTime() && distance < maxDistance) {
                             locations.add(location);
                         }
 

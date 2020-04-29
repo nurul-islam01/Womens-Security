@@ -1,12 +1,15 @@
 package com.nit.womenssecurity.activity;
 
 import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.MenuItem;
@@ -53,6 +56,10 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
     private TrackingActivator trackingActivator;
     private User user;
 
+    public static final String CHANNEL_ID = "ws_notification_id";
+    public static final String CHANNEL_NAME = "ws_notification_channel";
+    public static final String CHANNEL_DESC = "ws_notification_des";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,6 +79,13 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         });
         alertDialog = new SweetAlertDialog(this);
         lm = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH);
+            channel.setDescription(CHANNEL_DESC);
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
+        }
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
@@ -113,7 +127,9 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         wsPreference = new WSPreference(this);
 
         if (wsPreference.getUser() == null) {
-            startActivity(new Intent(this, LoginActivity.class));
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
             finish();
         } else {
             this.user = wsPreference.getUser();
