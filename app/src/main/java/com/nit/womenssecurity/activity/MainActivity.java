@@ -3,23 +3,21 @@ package com.nit.womenssecurity.activity;
 import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.MenuItem;
-import android.view.View;
 import android.view.Menu;
 import android.widget.Toast;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.nit.womenssecurity.R;
 import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.receiver.LocationProviderChangedReceiver;
@@ -42,10 +40,10 @@ import androidx.appcompat.widget.Toolbar;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
 
-import static com.nit.womenssecurity.receiver.LocationProviderChangedReceiver.IS_LOCATION_ENABLED;
-
 public class MainActivity extends AppCompatActivity implements ShakeDetector.Listener {
     private static final String TAG = "MainActivity";
+
+    public static final String LOCATION_ACTION = "com.nit.womenssecurity.loction_action";
 
     public static final int PERMISSIONS_REQUEST_LOCATION = 1224;
 
@@ -69,14 +67,7 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+
         alertDialog = new SweetAlertDialog(this);
         lm = (LocationManager) getSystemService(LOCATION_SERVICE);
 
@@ -84,8 +75,11 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH);
             channel.setDescription(CHANNEL_DESC);
             NotificationManager manager = getSystemService(NotificationManager.class);
+            assert manager != null;
             manager.createNotificationChannel(channel);
         }
+
+        FirebaseMessaging.getInstance().subscribeToTopic("updates");
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
@@ -104,15 +98,25 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         if (!checkLocationPermission()) {
             permissionDialog();
         } else if (checkLocationPermission()){
-            if (!isLocationServiceEnable()) {
-                showLocationDialog();
-            }
-            if (wsPreference.getTracking() && isLocationServiceEnable()) {
+            if (wsPreference.getTracking() && locationEnabled() && online()) {
                 trackingActivator.startTracking();
             }
-            locationBroadCast();
         }
 
+    }
+
+    private boolean locationEnabled() {
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        assert locationManager != null;
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+    }
+
+
+    private boolean online() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        assert cm != null;
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return  (netInfo != null && netInfo.isConnected());
     }
 
     private void getUser() {
@@ -155,28 +159,6 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         }).show();
     }
 
-    private boolean isLocationServiceEnable() {
-        try {
-            return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        } catch(Exception ex) {
-            return false;
-        }
-    }
-
-    private void locationBroadCast() {
-        IntentFilter intentFilter = new IntentFilter(LocationProviderChangedReceiver.LOCATION_AVAILABLE_ACTION);
-        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                boolean locationProviderState = intent.getBooleanExtra(IS_LOCATION_ENABLED, false);
-                if (locationProviderState && wsPreference.getTracking()) {
-                    trackingActivator.startTracking();
-                }
-                String text = locationProviderState ? "Enabled" : "Disabled";
-                Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
-            }
-        }, intentFilter);
-    }
 
     private void permissionDialog() {
         alertDialog.changeAlertType(SweetAlertDialog.NORMAL_TYPE);

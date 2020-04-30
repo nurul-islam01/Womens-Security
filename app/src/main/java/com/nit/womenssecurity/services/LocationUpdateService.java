@@ -1,35 +1,35 @@
 package com.nit.womenssecurity.services;
 
 import android.annotation.SuppressLint;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
+import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.media.RingtoneManager;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 
+import android.os.SystemClock;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.NotificationCompat;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.ApiException;
@@ -44,19 +44,21 @@ import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.location.SettingsClient;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnCanceledListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.ValueEventListener;
-import com.google.maps.android.SphericalUtil;
-import com.nit.womenssecurity.activity.MainActivity;
-import com.nit.womenssecurity.R;
+import com.nit.womenssecurity.pojos.DeviceToken;
+import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.pojos.UserLocation;
 import com.nit.womenssecurity.utils.ShakeDetector;
 import com.nit.womenssecurity.utils.WSFirebase;
+import com.nit.womenssecurity.utils.WSPreference;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -92,7 +94,11 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
     private int counting = 0;
     private boolean alert = false;
 
-    private String userId;
+    private User user;
+    private WSPreference preference;
+
+    private RequestQueue requestQueue;
+    private String URL = "https://fcm.googleapis.com/fcm/send";
 
     @Override
     public void onCreate() {
@@ -101,14 +107,15 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         lm = (LocationManager)context.getSystemService(Context.LOCATION_SERVICE);
         manager = (SensorManager) getSystemService(SENSOR_SERVICE);
         shakeDetector = new ShakeDetector(this);
-        userId = WSFirebase.getAuth().getUid();
+        preference = new WSPreference(this);
+        requestQueue = Volley.newRequestQueue(this);
+        user = preference.getUser();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!isLocationServiceEnabled()) {
-            showNotification();
-        }
+        super.onStartCommand(intent, flags, startId);
+
         shakeDetector.start(manager);
         final Handler handler = new Handler();
         final Runnable runnable = new Runnable() {
@@ -154,6 +161,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                 public void onFinish() {
                     counting = 0;
                     alert = false;
+                    LocationUpdateService.interVal = 50;
                 }
 
             }.start();
@@ -163,7 +171,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
 
     private void startAlertProcess() {
 
-        WSFirebase.userLocation().addValueEventListener(new ValueEventListener() {
+        WSFirebase.userLocation().addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
@@ -171,16 +179,14 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                     long time = date.getTime();
                     List<UserLocation>  locations = new ArrayList<>();
                     for (DataSnapshot d: dataSnapshot.getChildren()) {
-                        UserLocation location = d.getValue(UserLocation.class);
-                        assert location != null;
-                        int distance = (int) SphericalUtil.computeDistanceBetween(new LatLng(Double.parseDouble(latitude), Double.parseDouble(longitude)), new LatLng(location.getLat(), location.getLon()));
 
-                        if (!location.getUserId().equals(userId) && time < location.getTime() && distance < maxDistance) {
+                        UserLocation location = d.getValue(UserLocation.class);
+                        int distance = distanceTo(Double.parseDouble(latitude), Double.parseDouble(longitude), location.getLat(), location.getLon());
+
+                        if (!location.getUserId().equals(user.getId()) && time < location.getTime() && distance < maxDistance) {
                             locations.add(location);
                         }
-
                     }
-                    Toast.makeText(context, ""+ locations.size(), Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -191,14 +197,78 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         });
     }
 
-    private boolean isLocationServiceEnabled() {
+    private void getToken(String toId) {
+        WSFirebase.userToken().child(toId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    DeviceToken token = dataSnapshot.getValue(DeviceToken.class);
+
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent){
+        if (preference.getTracking()) {
+            Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
+            restartServiceIntent.setPackage(getPackageName());
+
+            PendingIntent restartServicePendingIntent = PendingIntent.getService(getApplicationContext(), 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT);
+            AlarmManager alarmService = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+            alarmService.set(
+                    AlarmManager.ELAPSED_REALTIME,
+                    SystemClock.elapsedRealtime() + 1000,
+                    restartServicePendingIntent);
+        }
+
+        super.onTaskRemoved(rootIntent);
+    }
+
+    private void sendNotification(String token) {
+        JSONObject mObject = new JSONObject();
         try {
-          return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        } catch(Exception ex) {
-            return false;
+            mObject.put("to", "/fcm?" + token);
+            JSONObject notificationObj = new JSONObject();
+            notificationObj.put("title", "Danger");
+            notificationObj.put("body", user.getFullName());
+
+            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, URL, mObject,
+                    new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            Toast.makeText(context, "Send Successful", Toast.LENGTH_SHORT).show();
+                        }
+                    }, new Response.ErrorListener() {
+                @SuppressLint("LongLogTag")
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Toast.makeText(context, "Send failed", Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "onErrorResponse: " + error.getMessage());
+                }
+            }
+
+            );
+
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
     }
 
+    private int distanceTo(double currentlatitude, double currentlongitude, double originLat, double originLon) {
+
+        float[] results = new float[1];
+        Location.distanceBetween(currentlatitude, currentlongitude, originLat, originLon, results);
+        float distanceInMeters = results[0];
+
+        return (int) distanceInMeters;
+    }
 
     @SuppressLint("LongLogTag")
     @Override
@@ -219,37 +289,6 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         return null;
     }
 
-    private void showNotification() {
-        Intent intent = new Intent(context, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0 /* Request code */, intent, PendingIntent.FLAG_ONE_SHOT);
-
-        String CHANNEL_ID = "channel_location";
-        String CHANNEL_NAME = "channel_location";
-
-        NotificationCompat.Builder builder = null;
-        NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-            notificationManager.createNotificationChannel(channel);
-            builder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID);
-            builder.setChannelId(CHANNEL_ID);
-            builder.setBadgeIconType(NotificationCompat.BADGE_ICON_NONE);
-        } else {
-            builder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID);
-        }
-
-        builder.setContentTitle("Location Required");
-        builder.setContentText("Your location service is required for women security app");
-        Uri notificationSound = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_NOTIFICATION);
-        builder.setSound(notificationSound);
-        builder.setAutoCancel(true);
-        builder.setSmallIcon(R.drawable.ic_my_location_black_24dp);
-        builder.setContentIntent(pendingIntent);
-        Notification notification = builder.build();
-        startForeground(101, notification);
-    }
 
     @Override
     public void onLocationChanged(Location location) {
@@ -262,9 +301,8 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         } else {
             Date date = new Date();
             long time = date.getTime();
-            String userId = WSFirebase.getAuth().getUid();
+            String userId = user.getId();
             UserLocation loc = new UserLocation(userId, time, location.getLatitude(), location.getLongitude());
-            assert userId != null;
             WSFirebase.userLocation().child(userId).setValue(loc);
         }
     }
@@ -314,9 +352,9 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                         try {
                             int REQUEST_CHECK_SETTINGS = 214;
                             ResolvableApiException rae = (ResolvableApiException) e;
-                            rae.startResolutionForResult((AppCompatActivity) context, REQUEST_CHECK_SETTINGS);
-                        } catch (IntentSender.SendIntentException sie) {
-                            Log.e(TAG_LOCATION, "Unable to execute request.");
+                            rae.startResolutionForResult((Activity) getApplicationContext(), REQUEST_CHECK_SETTINGS);
+                        } catch (Exception e1) {
+                            Log.e(TAG_LOCATION, "Unable to execute request." + e1.getMessage());
                         }
                         break;
                     case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:

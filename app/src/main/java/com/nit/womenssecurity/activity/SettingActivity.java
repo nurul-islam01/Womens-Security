@@ -1,12 +1,8 @@
 package com.nit.womenssecurity.activity;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -16,13 +12,10 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import com.nit.womenssecurity.R;
-import com.nit.womenssecurity.receiver.LocationProviderChangedReceiver;
 import com.nit.womenssecurity.utils.TrackingActivator;
 import com.nit.womenssecurity.utils.WSPreference;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
-
-import static com.nit.womenssecurity.receiver.LocationProviderChangedReceiver.IS_LOCATION_ENABLED;
 
 public class SettingActivity extends AppCompatActivity {
     private static final String TAG = "SettingActivity";
@@ -84,8 +77,6 @@ public class SettingActivity extends AppCompatActivity {
                 }
             }
         });
-
-        locationBroadCast();
     }
 
     private boolean isLocationServiceEnable() {
@@ -96,20 +87,7 @@ public class SettingActivity extends AppCompatActivity {
         }
     }
 
-    private void locationBroadCast() {
-        IntentFilter intentFilter = new IntentFilter(LocationProviderChangedReceiver.LOCATION_AVAILABLE_ACTION);
-        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                boolean locationProviderState = intent.getBooleanExtra(IS_LOCATION_ENABLED, false);
-                if (locationProviderState && preference.getTracking()) {
-                    activator.startTracking();
-                }
-                String text = locationProviderState ? "Enabled" : "Disabled";
-                Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
-            }
-        }, intentFilter);
-    }
+
 
     private void showLocationDialog() {
         alertDialog.changeAlertType(SweetAlertDialog.WARNING_TYPE);

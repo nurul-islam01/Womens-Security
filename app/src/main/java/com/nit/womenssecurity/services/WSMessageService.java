@@ -19,6 +19,7 @@ public class WSMessageService extends FirebaseMessagingService {
             String content = remoteMessage.getNotification().getBody();
             WSNotification.showNotification(this, title, content);
         }
+
     }
 
     @Override
