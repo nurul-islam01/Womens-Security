@@ -117,31 +117,12 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         super.onStartCommand(intent, flags, startId);
 
         shakeDetector.start(manager);
-        final Handler handler = new Handler();
-        final Runnable runnable = new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    if (!stopService) {
-                        //Perform your task here
-                    }
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    if (!stopService) {
-                        handler.postDelayed(this, TimeUnit.SECONDS.toMillis(10));
-                    }
-                }
-            }
-        };
-        handler.postDelayed(runnable, 2000);
 
         buildGoogleApiClient();
 
         return START_STICKY;
     }
+
 
     @Override
     public void hearShake() {
@@ -280,6 +261,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
             Log.e(TAG_LOCATION, "Location Update Callback Removed");
         }
         shakeDetector.stop();
+        Toast.makeText(context, "Destroy", Toast.LENGTH_SHORT).show();
         super.onDestroy();
     }
 

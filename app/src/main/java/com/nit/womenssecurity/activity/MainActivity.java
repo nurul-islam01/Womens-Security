@@ -40,7 +40,8 @@ import androidx.appcompat.widget.Toolbar;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
 
-public class MainActivity extends AppCompatActivity implements ShakeDetector.Listener {
+public class MainActivity extends AppCompatActivity {
+
     private static final String TAG = "MainActivity";
 
     public static final String LOCATION_ACTION = "com.nit.womenssecurity.loction_action";
@@ -218,12 +219,6 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         return NavigationUI.navigateUp(navController, mAppBarConfiguration)
                 || super.onSupportNavigateUp();
     }
-
-    @Override
-    public void hearShake() {
-        Toast.makeText(this, "shaked", Toast.LENGTH_SHORT).show();
-    }
-
 
     public boolean checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this,
