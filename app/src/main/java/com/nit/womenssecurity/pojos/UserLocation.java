@@ -48,4 +48,14 @@ public class UserLocation {
     public void setLon(double lon) {
         this.lon = lon;
     }
+
+    @Override
+    public String toString() {
+        return "UserLocation{" +
+                "userId='" + userId + '\'' +
+                ", time=" + time +
+                ", lat=" + lat +
+                ", lon=" + lon +
+                '}';
+    }
 }

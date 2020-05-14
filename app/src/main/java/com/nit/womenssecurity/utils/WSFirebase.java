@@ -26,4 +26,10 @@ public class WSFirebase {
 
     public static DatabaseReference userToken() { return reference().child("USERS_TOKEN");}
 
+    public static DatabaseReference notifications() { return reference().child("NOTIFICATIONS");}
+
+    public static DatabaseReference contacts(String userId) {
+        return user().child(userId).child("CONTACTS");
+    }
+
 }

@@ -18,7 +18,6 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.chaos.view.PinView;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
@@ -27,7 +26,7 @@ import com.nit.womenssecurity.utils.WSFirebase;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
 
-public class ForegetPasswordActivity extends AppCompatActivity {
+public class ForgetPasswordActivity extends AppCompatActivity {
 
     private static final String TAG = "ForegetPasswordActivity";
 
@@ -107,7 +106,7 @@ public class ForegetPasswordActivity extends AppCompatActivity {
                                     }
                                 });
 
-                                Toast.makeText(ForegetPasswordActivity.this, "Email send", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(ForgetPasswordActivity.this, "Email send", Toast.LENGTH_SHORT).show();
                             } else {
                                 alertDialog.changeAlertType(SweetAlertDialog.ERROR_TYPE);
                                 alertDialog.setTitle("Failed");

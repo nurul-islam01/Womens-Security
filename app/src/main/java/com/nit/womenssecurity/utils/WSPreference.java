@@ -4,7 +4,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.google.gson.Gson;
+import com.nit.womenssecurity.pojos.Contact;
 import com.nit.womenssecurity.pojos.User;
+
+import java.lang.reflect.Type;
+import java.util.List;
 
 public class WSPreference {
 
@@ -24,11 +28,26 @@ public class WSPreference {
         editor.putString("user", json);
         editor.apply();
     }
+
     public User getUser(){
         Gson gson = new Gson();
         String json = mPref.getString("user", null);
         User user = gson.fromJson(json, User.class);
         return user;
+    }
+
+    public void saveContacts(List<Contact> contacts){
+        Gson gson = new Gson();
+        String json = gson.toJson(contacts);
+        editor.putString("contacts", json);
+        editor.apply();
+    }
+
+    public List<Contact> getContacts(){
+        Gson gson = new Gson();
+        String json = mPref.getString("contacts", null);
+        List<Contact> contacts = gson.fromJson(json, (Type) Contact.class);
+        return contacts;
     }
 
     public void saveTacking(boolean isTraking) {
@@ -40,10 +59,13 @@ public class WSPreference {
         return mPref.getBoolean("tracking", true);
     }
 
-    public void removeUser() {
-        if (mPref.getString("user", null) != null) {
-            editor.putString("user", null);
-        }
+    public void saveBadge(int i) {
+        editor.putInt("badge", i);
+        editor.apply();
+    }
+
+    public int getBadge() {
+        return mPref.getInt("badge", 0);
     }
 
     public void removeWsPref() {

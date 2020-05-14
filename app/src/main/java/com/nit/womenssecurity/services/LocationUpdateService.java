@@ -2,7 +2,7 @@ package com.nit.womenssecurity.services;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -11,19 +11,23 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.CountDownTimer;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-
-import android.os.SystemClock;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.constraintlayout.solver.widgets.Helper;
+import androidx.core.app.NotificationCompat;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -50,31 +54,52 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.ValueEventListener;
+import com.nit.womenssecurity.R;
+import com.nit.womenssecurity.activity.DangerActivity;
+import com.nit.womenssecurity.activity.MainActivity;
+import com.nit.womenssecurity.activity.SettingActivity;
+import com.nit.womenssecurity.pojos.Contact;
 import com.nit.womenssecurity.pojos.DeviceToken;
+import com.nit.womenssecurity.pojos.Notifi;
 import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.pojos.UserLocation;
 import com.nit.womenssecurity.utils.ShakeDetector;
 import com.nit.womenssecurity.utils.WSFirebase;
+import com.nit.womenssecurity.utils.WSNotification;
 import com.nit.womenssecurity.utils.WSPreference;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
 
 
 public class LocationUpdateService extends Service implements ShakeDetector.Listener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
 
-    private final String TAG = "BackgroundLocationUpdateService";
-    private final String TAG_LOCATION = "TAG_LOCATION";
+    public static final String TAG = "BackgroundLocationUpdateService";
+    public final String TAG_LOCATION = "TAG_LOCATION";
+    public static final String AUTHORIZATION_KEY = "authorization";
+    public static final String CATEGORY = "category";
+    public static final String DANGER = "danger";
+    public static final String NOTIFICATION_ID = "notification_id";
+
     private Context context;
     private boolean stopService = false;
     public static int interVal = 50;
     public static int maxDistance = 500;
+
+    private static final int NOTIF_ID = 2;
+    private static final String NOTIF_CHANNEL_ID = "Channel_Id";
 
     /* For Google Fused API */
     protected GoogleApiClient mGoogleApiClient;
@@ -114,13 +139,30 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        super.onStartCommand(intent, flags, startId);
 
         shakeDetector.start(manager);
 
         buildGoogleApiClient();
+        if (preference.getTracking()) {
+            startForeground();
+        }
+        return  super.onStartCommand(intent, flags, startId);
+    }
 
-        return START_STICKY;
+    private void startForeground() {
+        Intent notificationIntent = new Intent(this, SettingActivity.class);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+                notificationIntent, 0);
+
+        startForeground(NOTIF_ID, new NotificationCompat.Builder(this,
+                MainActivity.CHANNEL_ID)
+                .setOngoing(true)
+                .setSmallIcon(R.drawable.danger_skull)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText("WS is running background")
+                .setContentIntent(pendingIntent)
+                .build());
     }
 
 
@@ -128,10 +170,17 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
     public void hearShake() {
 
         if (counting > 0 && !alert) {
-            Toast.makeText(this, "Alert", Toast.LENGTH_SHORT).show();
             alert = true;
-            LocationUpdateService.interVal = 5;
-            startAlertProcess();
+//            LocationUpdateService.interVal = 5;
+            if (online() && locationEnabled()) {
+                startAlertProcess();
+            } else {
+                List<Contact> contacts = preference.getContacts();
+                for (Contact contact: contacts) {
+                    sendSMSMessage(contact);
+                }
+            }
+
         } else {
             new CountDownTimer(10000, 1000) {
 
@@ -142,12 +191,39 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                 public void onFinish() {
                     counting = 0;
                     alert = false;
-                    LocationUpdateService.interVal = 50;
+//                    LocationUpdateService.interVal = 50;
+
                 }
 
             }.start();
         }
+    }
 
+    private void sendSMSMessage(Contact contact) {
+
+        try {
+            SmsManager smsManager = SmsManager.getDefault();
+            smsManager.sendTextMessage(contact.getNumber(), null, user.getFullName() + " is in danger, please help her hurry", null, null);
+            Toast.makeText(getApplicationContext(), "SMS sent.",
+                    Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(getApplicationContext(),
+                    "SMS failed, please try again.",
+                    Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+    }
+
+    private boolean online() {
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        assert cm != null;
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return  (netInfo != null && netInfo.isConnected());
+    }
+
+    private boolean locationEnabled() {
+        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 
     private void startAlertProcess() {
@@ -162,18 +238,20 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                     for (DataSnapshot d: dataSnapshot.getChildren()) {
 
                         UserLocation location = d.getValue(UserLocation.class);
+                        assert location != null;
                         int distance = distanceTo(Double.parseDouble(latitude), Double.parseDouble(longitude), location.getLat(), location.getLon());
-
                         if (!location.getUserId().equals(user.getId()) && time < location.getTime() && distance < maxDistance) {
                             locations.add(location);
+                            getToken(location.getUserId());
                         }
                     }
                 }
             }
 
+            @SuppressLint("LongLogTag")
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-
+                Log.d(TAG, "onCancelled: " + databaseError.getDetails());
             }
         });
     }
@@ -184,61 +262,80 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     DeviceToken token = dataSnapshot.getValue(DeviceToken.class);
-
+                    sendNotification(token);
                 }
             }
 
+            @SuppressLint("LongLogTag")
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-
+                Log.d(TAG, "onCancelled: " + databaseError.getDetails());
             }
         });
     }
 
-    @Override
-    public void onTaskRemoved(Intent rootIntent){
-        if (preference.getTracking()) {
-            Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
-            restartServiceIntent.setPackage(getPackageName());
+    @SuppressLint({"StaticFieldLeak", "LongLogTag"})
+    private void sendNotification(DeviceToken token) {
 
-            PendingIntent restartServicePendingIntent = PendingIntent.getService(getApplicationContext(), 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT);
-            AlarmManager alarmService = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-            alarmService.set(
-                    AlarmManager.ELAPSED_REALTIME,
-                    SystemClock.elapsedRealtime() + 1000,
-                    restartServicePendingIntent);
-        }
-
-        super.onTaskRemoved(rootIntent);
-    }
-
-    private void sendNotification(String token) {
-        JSONObject mObject = new JSONObject();
+        JSONObject json = new JSONObject();
+        JSONObject jsonData = new JSONObject();
         try {
-            mObject.put("to", "/fcm?" + token);
-            JSONObject notificationObj = new JSONObject();
-            notificationObj.put("title", "Danger");
-            notificationObj.put("body", user.getFullName());
 
-            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, URL, mObject,
+            String title = user.getFullName() + " In danger";
+            String body = "This notification was from " + user.getFullName() + ". she is in danger. Please help her";
+            Date date = new Date();
+            long time = date.getTime();
+
+
+            jsonData.put("body", body);
+            jsonData.put("title", title);
+
+            JSONObject extraData = new JSONObject();
+            String pushKey = WSFirebase.notifications().push().getKey();
+            extraData.put(NOTIFICATION_ID, pushKey);
+            extraData.put(CATEGORY, DANGER);
+            extraData.put("receiverId", token.getUserId());
+            extraData.put("senderId", user.getId());
+            extraData.put("time", time);
+            extraData.put("seen", false);
+
+            json.put("to", token.getToken());
+            json.put("notification", jsonData);
+            json.put("data", extraData);
+
+
+
+            Notifi notifi = new Notifi(pushKey, token.getUserId(), user.getId(), time, title, DANGER, body, false);
+
+
+            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, URL, json,
                     new Response.Listener<JSONObject>() {
                         @Override
                         public void onResponse(JSONObject response) {
-                            Toast.makeText(context, "Send Successful", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "Notification send", Toast.LENGTH_SHORT).show();
+
+                            WSFirebase.notifications().child(pushKey).setValue(notifi);
                         }
                     }, new Response.ErrorListener() {
-                @SuppressLint("LongLogTag")
                 @Override
                 public void onErrorResponse(VolleyError error) {
-                    Toast.makeText(context, "Send failed", Toast.LENGTH_SHORT).show();
-                    Log.d(TAG, "onErrorResponse: " + error.getMessage());
+                    int response = error.networkResponse.statusCode;
+                    Log.d(TAG, "onErrorResponse: " + response);
                 }
-            }
+            }){
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("content-type", "application/json; charset=utf-8");
+                    headers.put(AUTHORIZATION_KEY, "key=" + getResources().getString(R.string.server_key));
+                    return headers;
+                }
+            };
 
-            );
+            requestQueue.add(request);
 
-        } catch (JSONException e) {
-            e.printStackTrace();
+        }catch (Exception e){
+            Log.d(TAG, "sendNotification: " + e.getMessage());
         }
     }
 
@@ -261,7 +358,12 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
             Log.e(TAG_LOCATION, "Location Update Callback Removed");
         }
         shakeDetector.stop();
-        Toast.makeText(context, "Destroy", Toast.LENGTH_SHORT).show();
+        if (!preference.getTracking()) {
+            NotificationManager mNotificationManager = (NotificationManager)
+                    getSystemService(NOTIFICATION_SERVICE);
+            mNotificationManager.cancel(NOTIF_ID);
+        }
+
         super.onDestroy();
     }
 
@@ -392,7 +494,6 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         }
     }
 
-    @SuppressLint("MissingPermission")
     private void requestLocationUpdate() {
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
     }

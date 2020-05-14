@@ -4,6 +4,7 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.widget.Toast;
 
 import com.nit.womenssecurity.services.LocationUpdateService;
 
@@ -22,11 +23,7 @@ public class TrackingActivator {
         if (!checkServiceRunning(LocationUpdateService.class)) {
             Intent intent = new Intent(LOCATION_ACTION);
             intent.setPackage(context.getPackageName());
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent);
-            } else {
-                context.startService(intent);
-            }
+            context.startService(intent);
         }
     }
 

@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+    <uses-permission android:name="com.sonyericsson.home.permission.BROADCAST_BADGE" />
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+    <uses-permission android:name="android.permission.SEND_SMS"/>
 
     <uses-feature
         android:name="android.hardware.sensor.accelerometer"
@@ -19,12 +26,34 @@
         android:smallScreens="false" />
 
     <application
-        android:allowBackup="true"
+        android:name=".WSApp"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+        <activity android:name=".activity.NotificationActivity"
+            android:label="Notifications"
+            android:parentActivityName=".activity.MainActivity"
+            android:screenOrientation="portrait"/>
+
+        <receiver
+            android:name=".receiver.NotificationReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".activity.DangerActivity"
+            android:noHistory="true"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".activity.NotificationActivity"
+            android:theme="@style/AppTheme.NoActionBar"/>
+
         <receiver
             android:name=".receiver.LocationProviderChangedReceiver"
             android:enabled="true"
@@ -40,15 +69,18 @@
         <activity
             android:name=".activity.SettingActivity"
             android:label="Settings"
-            android:parentActivityName=".activity.MainActivity" />
+            android:parentActivityName=".activity.MainActivity"
+            android:screenOrientation="portrait" />
         <activity
-            android:name=".activity.ForegetPasswordActivity"
+            android:name=".activity.ForgetPasswordActivity"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".activity.SignupActivity"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".activity.LoginActivity"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar" />
 
         <receiver
@@ -61,23 +93,26 @@
             </intent-filter>
         </receiver>
 
-
-
         <activity
             android:name=".activity.MainActivity"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <action android:name=".MainActivity" />
             </intent-filter>
         </activity>
 
         <service
             android:name=".services.WSMessageService"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true"
+            android:stopWithTask="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
@@ -86,11 +121,25 @@
             android:name=".services.LocationUpdateService"
             android:enabled="true"
             android:exported="false"
+            android:process=":LocationUpdateService"
             android:stopWithTask="false">
             <intent-filter>
-                <action android:name="com.nit.womenssecurity.loction_action" />
+                <action android:name="com.nit.womenssecurity.location_action" />
             </intent-filter>
         </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/danger_skull" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorAccent" />
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/map_key"/>
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
     </application>
 
 </manifest>

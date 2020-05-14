@@ -9,7 +9,7 @@
     <string name="action_log_out">Log out</string>
 
     <string name="menu_home">Home</string>
-    <string name="menu_gallery">Gallery</string>
+    <string name="menu_profile">Profile</string>
     <string name="menu_slideshow">Slideshow</string>
 
     <string name="home_second">Home Second</string>
@@ -24,4 +24,8 @@
     <string name="login_failed">"Login failed"</string>
     <string name="resent_email"><u>Resent Email</u></string>
     <string name="default_notification_channel_id">ws_notification_channel</string>
+    <string name="server_key">AAAAvlS1KFA:APA91bEHQDKBB-IIoH_rMxsYoAcPyuEHkhE3Z_XMuQmOMn965EQ00jr2d30ZysV5nxhYXP2-uMkLxu6FSfUDrIUsbGgWUn5FV-oiEOXX-AdK0-2UnIG7whLESVFHrPzxVB-7j6mxgF9L</string>
+    <string name="map_key">AIzaSyDs1jRlStSnXXKu2HECAHxRhYMDrZNQIoE</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

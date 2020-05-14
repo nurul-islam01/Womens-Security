@@ -1,6 +1,7 @@
 package com.nit.womenssecurity.activity;
 
 import android.Manifest;
+import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -12,8 +13,11 @@ import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.Menu;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.navigation.NavigationView;
@@ -24,6 +28,7 @@ import com.nit.womenssecurity.receiver.LocationProviderChangedReceiver;
 import com.nit.womenssecurity.utils.ShakeDetector;
 import com.nit.womenssecurity.utils.TrackingActivator;
 import com.nit.womenssecurity.utils.WSFirebase;
+import com.nit.womenssecurity.utils.WSNotification;
 import com.nit.womenssecurity.utils.WSPreference;
 
 import androidx.annotation.NonNull;
@@ -39,12 +44,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
+import me.leolin.shortcutbadger.ShortcutBadger;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    public static final String LOCATION_ACTION = "com.nit.womenssecurity.loction_action";
+    public static final String LOCATION_ACTION = "com.nit.womenssecurity.location_action";
 
     public static final int PERMISSIONS_REQUEST_LOCATION = 1224;
 
@@ -54,6 +60,9 @@ public class MainActivity extends AppCompatActivity {
     private WSPreference wsPreference;
     private TrackingActivator trackingActivator;
     private User user;
+
+    private TextView notificationTV;
+    private int notificationCount = 0;
 
     public static final String CHANNEL_ID = "ws_notification_id";
     public static final String CHANNEL_NAME = "ws_notification_channel";
@@ -72,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
         alertDialog = new SweetAlertDialog(this);
         lm = (LocationManager) getSystemService(LOCATION_SERVICE);
 
+        notificationCount = wsPreference.getBadge();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH);
             channel.setDescription(CHANNEL_DESC);
@@ -87,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
+                R.id.nav_home, R.id.nav_profile)
                 .setDrawerLayout(drawer)
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
@@ -103,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
                 trackingActivator.startTracking();
             }
         }
+
 
     }
 
@@ -184,7 +196,35 @@ public class MainActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.main, menu);
+
+        final MenuItem menuItem = menu.findItem(R.id.action_notification);
+
+        View actionView = menuItem.getActionView();
+        notificationTV = (TextView) actionView.findViewById(R.id.cart_badge);
+        setupBadge();
+        actionView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onOptionsItemSelected(menuItem);
+            }
+        });
         return true;
+    }
+
+    private void setupBadge() {
+
+        if (notificationTV != null) {
+            if (notificationCount == 0) {
+                if (notificationTV.getVisibility() != View.GONE) {
+                    notificationTV.setVisibility(View.GONE);
+                }
+            } else {
+                notificationTV.setText(String.valueOf(notificationCount));
+                if (notificationTV.getVisibility() != View.VISIBLE) {
+                    notificationTV.setVisibility(View.VISIBLE);
+                }
+            }
+        }
     }
 
     @Override
@@ -196,7 +236,9 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_logout:
                 logoutManage();
                 break;
-
+            case R.id.action_notification:
+                startActivity(new Intent(this, NotificationActivity.class));
+                break;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -204,10 +246,7 @@ public class MainActivity extends AppCompatActivity {
     private void logoutManage() {
         WSFirebase.getAuth().signOut();
         wsPreference.removeWsPref();
-
         trackingActivator.stopTracking();
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(new LocationProviderChangedReceiver());
-
         Toast.makeText(this, "Logout", Toast.LENGTH_SHORT).show();
         startActivity(new Intent(this, LoginActivity.class));
         finish();
