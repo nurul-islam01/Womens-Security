@@ -26,6 +26,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.constraintlayout.solver.widgets.Helper;
 import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -71,6 +72,7 @@ import com.nit.womenssecurity.utils.WSPreference;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -81,6 +83,9 @@ import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
+
+import static com.nit.womenssecurity.ui.home.HomeFragment.MESSAGE_RECEIVER;
+import static com.nit.womenssecurity.ui.home.HomeFragment.NOTIFICATION_SENDS;
 
 
 public class LocationUpdateService extends Service implements ShakeDetector.Listener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -124,6 +129,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
 
     private RequestQueue requestQueue;
     private String URL = "https://fcm.googleapis.com/fcm/send";
+    private LocalBroadcastManager localBroadcastManager;
 
     @Override
     public void onCreate() {
@@ -131,21 +137,35 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         context = this;
         lm = (LocationManager)context.getSystemService(Context.LOCATION_SERVICE);
         manager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        localBroadcastManager = LocalBroadcastManager.getInstance(context);
         shakeDetector = new ShakeDetector(this);
         preference = new WSPreference(this);
         requestQueue = Volley.newRequestQueue(this);
         user = preference.getUser();
     }
 
+    @SuppressLint("LongLogTag")
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
+        preference.saveTacking(true);
         shakeDetector.start(manager);
 
         buildGoogleApiClient();
         if (preference.getTracking()) {
             startForeground();
         }
+        try {
+            if (intent.getBooleanExtra("warning", false)){
+                if (online() && locationEnabled()) {
+                    startAlertProcess();
+                } else {
+                    sendSMSToPhone();
+                }
+            }
+        }catch (Exception e){
+            Log.d(TAG, "onStartCommand: " + e.getMessage());
+        }
+
         return  super.onStartCommand(intent, flags, startId);
     }
 
@@ -158,7 +178,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         startForeground(NOTIF_ID, new NotificationCompat.Builder(this,
                 MainActivity.CHANNEL_ID)
                 .setOngoing(true)
-                .setSmallIcon(R.drawable.danger_skull)
+                .setSmallIcon(R.drawable.ws_front)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText("WS is running background")
                 .setContentIntent(pendingIntent)
@@ -166,51 +186,72 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
     }
 
 
+    @SuppressLint("LongLogTag")
     @Override
     public void hearShake() {
 
-        if (counting > 0 && !alert) {
+        counting = counting + 1;
+
+        if (counting > 1 && !alert) {
+            counting = 0;
             alert = true;
-//            LocationUpdateService.interVal = 5;
             if (online() && locationEnabled()) {
                 startAlertProcess();
             } else {
-                List<Contact> contacts = preference.getContacts();
-                for (Contact contact: contacts) {
-                    sendSMSMessage(contact);
+                sendSMSToPhone();
+            }
+        }
+
+
+        new CountDownTimer(10000, 1000) {
+
+            public void onTick(long millisUntilFinished) {
+
+            }
+
+            public void onFinish() {
+                counting = 0;
+                alert = false;
+//              LocationUpdateService.interVal = 50;
+            }
+
+        }.start();
+
+    }
+
+    @SuppressLint("LongLogTag")
+    private void sendSMSToPhone() {
+
+        List<Contact> contacts = preference.getContacts();
+        List<Contact> sendList = new ArrayList<>();
+
+        if (contacts != null) {
+            for (Contact contact: contacts) {
+                try {
+                    SmsManager smsManager = SmsManager.getDefault();
+                    smsManager.sendTextMessage(contact.getNumber(), null, user.getFullName() + " is in danger, please help her hurry", null, null);
+                    Toast.makeText(getApplicationContext(), "SMS sent.",
+                            Toast.LENGTH_LONG).show();
+                    sendList.add(contact);
+
+                    Log.d(TAG, "sendSMSToPhone: " + contact.toString());
+
+                } catch (Exception e) {
+                    Toast.makeText(getApplicationContext(),
+                            "SMS failed, please try again.",
+                            Toast.LENGTH_LONG).show();
+                    Log.d(TAG, "sendSMSToPhone: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
 
-        } else {
-            new CountDownTimer(10000, 1000) {
-
-                public void onTick(long millisUntilFinished) {
-                    counting = (int) millisUntilFinished / 1000;
-                }
-
-                public void onFinish() {
-                    counting = 0;
-                    alert = false;
-//                    LocationUpdateService.interVal = 50;
-
-                }
-
-            }.start();
-        }
-    }
-
-    private void sendSMSMessage(Contact contact) {
-
-        try {
-            SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage(contact.getNumber(), null, user.getFullName() + " is in danger, please help her hurry", null, null);
-            Toast.makeText(getApplicationContext(), "SMS sent.",
-                    Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Toast.makeText(getApplicationContext(),
-                    "SMS failed, please try again.",
-                    Toast.LENGTH_LONG).show();
-            e.printStackTrace();
+            Intent intent = new Intent(MESSAGE_RECEIVER);
+            if (sendList.size() > 0) {
+                intent.putExtra("smssendinglist", (Serializable) sendList);
+            } else {
+                intent.putExtra("error", true);
+            }
+            sendBroadcast(intent);
         }
     }
 
@@ -235,8 +276,8 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                     Date date = new Date(System.currentTimeMillis() - 500 * 1000);
                     long time = date.getTime();
                     List<UserLocation>  locations = new ArrayList<>();
-                    for (DataSnapshot d: dataSnapshot.getChildren()) {
 
+                    for (DataSnapshot d: dataSnapshot.getChildren()) {
                         UserLocation location = d.getValue(UserLocation.class);
                         assert location != null;
                         int distance = distanceTo(Double.parseDouble(latitude), Double.parseDouble(longitude), location.getLat(), location.getLon());
@@ -245,12 +286,22 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                             getToken(location.getUserId());
                         }
                     }
+
+                    Intent intent = new Intent(NOTIFICATION_SENDS);
+                    if (locations.size() > 0) {
+                        intent.putExtra("sendTo", locations.size());
+                    } else {
+                        sendSMSToPhone();
+                        intent.putExtra("sendTo", 0);
+                    }
+                    sendBroadcast(intent);
                 }
             }
 
             @SuppressLint("LongLogTag")
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
+                sendSMSToPhone();
                 Log.d(TAG, "onCancelled: " + databaseError.getDetails());
             }
         });
@@ -274,6 +325,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         });
     }
 
+
     @SuppressLint({"StaticFieldLeak", "LongLogTag"})
     private void sendNotification(DeviceToken token) {
 
@@ -285,7 +337,6 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
             String body = "This notification was from " + user.getFullName() + ". she is in danger. Please help her";
             Date date = new Date();
             long time = date.getTime();
-
 
             jsonData.put("body", body);
             jsonData.put("title", title);
@@ -303,10 +354,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
             json.put("notification", jsonData);
             json.put("data", extraData);
 
-
-
             Notifi notifi = new Notifi(pushKey, token.getUserId(), user.getId(), time, title, DANGER, body, false);
-
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, URL, json,
                     new Response.Listener<JSONObject>() {
@@ -319,8 +367,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                     }, new Response.ErrorListener() {
                 @Override
                 public void onErrorResponse(VolleyError error) {
-                    int response = error.networkResponse.statusCode;
-                    Log.d(TAG, "onErrorResponse: " + response);
+                    Log.d(TAG, "onErrorResponse: " + error.getMessage());
                 }
             }){
                 @Override
@@ -353,6 +400,7 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
     public void onDestroy() {
         Log.e(TAG, "Service Stopped");
         stopService = true;
+        preference.saveTacking(false);
         if (mFusedLocationClient != null) {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
             Log.e(TAG_LOCATION, "Location Update Callback Removed");

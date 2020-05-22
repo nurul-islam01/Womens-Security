@@ -21,7 +21,7 @@
                 android:layout_width="150dp"
                 android:layout_height="150dp"
                 android:layout_marginTop="10dp"
-                android:src="@drawable/person"/>
+                android:src="@drawable/avater"/>
             <TextView
                 android:id="@+id/nameTV"
                 android:layout_width="match_parent"
@@ -96,12 +96,6 @@
                         android:gravity="center"
                         android:textStyle="bold"
                         android:textSize="20sp" />
-                    <View
-                        android:layout_width="150dp"
-                        android:layout_height="2dp"
-                        android:layout_gravity="center"
-                        android:background="@android:color/darker_gray"
-                        android:layout_marginBottom="10dp"/>
 
                     <TextView
                         android:id="@+id/noContactTV"

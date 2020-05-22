@@ -35,6 +35,23 @@ public class TrackingActivator {
         }
     }
 
+    public void actionWarning() {
+        if (!checkServiceRunning(LocationUpdateService.class)) {
+            Intent intent = new Intent(LOCATION_ACTION);
+            intent.putExtra("warning", true);
+            intent.setPackage(context.getPackageName());
+            context.startService(intent);
+        } else if (checkServiceRunning(LocationUpdateService.class)) {
+            Intent intent = new Intent(LOCATION_ACTION);
+            intent.setPackage(context.getPackageName());
+            context.stopService(intent);
+
+            intent.putExtra("warning", true);
+            intent.setPackage(context.getPackageName());
+            context.startService(intent);
+        }
+    }
+
     public boolean checkServiceRunning(Class<?> serviceClass){
         ActivityManager manager = (ActivityManager) context.getSystemService(ACTIVITY_SERVICE);
         assert manager != null;

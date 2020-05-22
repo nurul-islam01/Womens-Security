@@ -4,10 +4,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.nit.womenssecurity.pojos.Contact;
 import com.nit.womenssecurity.pojos.User;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 
 public class WSPreference {
@@ -46,7 +48,8 @@ public class WSPreference {
     public List<Contact> getContacts(){
         Gson gson = new Gson();
         String json = mPref.getString("contacts", null);
-        List<Contact> contacts = gson.fromJson(json, (Type) Contact.class);
+        Type type = new TypeToken<ArrayList<Contact>>() {}.getType();
+        List<Contact> contacts = gson.fromJson(json, type);
         return contacts;
     }
 
@@ -63,6 +66,8 @@ public class WSPreference {
         editor.putInt("badge", i);
         editor.apply();
     }
+
+
 
     public int getBadge() {
         return mPref.getInt("badge", 0);

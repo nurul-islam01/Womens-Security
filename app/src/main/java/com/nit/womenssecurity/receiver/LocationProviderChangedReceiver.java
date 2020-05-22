@@ -41,14 +41,14 @@ public class LocationProviderChangedReceiver extends BroadcastReceiver {
         if (Objects.requireNonNull(intent.getAction()).matches("android.location.PROVIDERS_CHANGED")) {
             if (!locationEnabled() && ac) {
                 Toast.makeText(context, "Enable location for WS", Toast.LENGTH_SHORT).show();
-                WSNotification.showRequired(context, "Required!!!", "Enable location for WS", R.drawable.locaton_icon);
+                WSNotification.showRequired(context, "Required!!!", "Enable location for WS");
             } else if (locationEnabled() && online() && ac) {
                 activator.startTracking();
             }
         } else if (intent.getAction().matches("android.net.conn.CONNECTIVITY_CHANGE")) {
             if (!online() && ac) {
                 Toast.makeText(context, "Please online for WS", Toast.LENGTH_SHORT).show();
-                WSNotification.showRequired(context, "Required!!!", "Enable internet connection for WS", R.drawable.ic_internet_required);
+                WSNotification.showRequired(context, "Required!!!", "Enable internet connection for WS");
             } else if (online() && locationEnabled() && ac) {
                 activator.startTracking();
             }

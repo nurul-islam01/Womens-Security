@@ -69,8 +69,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                WSFirebase.notifications().child(notifi.getId()).child("seen").setValue(true);
-
                 if (lastTime() < notifi.getTime()) {
                     Intent intent = new Intent(context, DangerActivity.class);
                     Bundle bundle = new Bundle();

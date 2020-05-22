@@ -17,14 +17,16 @@
             android:gravity="center"
             android:orientation="vertical">
             <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/imageCIV"
                 android:layout_width="150dp"
                 android:layout_height="150dp"
                 android:layout_marginTop="10dp"
-                android:src="@drawable/person"/>
+                android:longClickable="true"
+                android:src="@drawable/avater"/>
             <TextView
+                android:id="@+id/nameTV"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Nurul Islam Tipu"
                 android:textColor="@color/white"
                 android:textSize="20sp"
                 android:gravity="center"
@@ -43,9 +45,9 @@
                     android:padding="5dp"
                     android:orientation="vertical">
                     <TextView
+                        android:id="@+id/emailTV"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Email : nurul.islam3f@gmail.com"
                         android:padding="5dp"
                         android:singleLine="true"
                         android:ellipsize="end"
@@ -56,6 +58,7 @@
                         android:layout_height="1dp"
                         android:background="@android:color/darker_gray"/>
                     <TextView
+                        android:id="@+id/phoneTV"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Phone : 01727946384"
@@ -91,12 +94,7 @@
                         android:gravity="center"
                         android:textStyle="bold"
                         android:textSize="20sp" />
-                    <View
-                        android:layout_width="150dp"
-                        android:layout_height="2dp"
-                        android:layout_gravity="center"
-                        android:background="@android:color/darker_gray"
-                        android:layout_marginBottom="10dp"/>
+
                     <TextView
                         android:id="@+id/noContactTV"
                         android:layout_width="match_parent"

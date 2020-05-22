@@ -1,5 +1,5 @@
-<resources>
-    <string name="app_name">Womens Security</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" >Women\'s Security</string>
     <string name="navigation_drawer_open">Open navigation drawer</string>
     <string name="navigation_drawer_close">Close navigation drawer</string>
     <string name="nav_header_title">Android Studio</string>
@@ -24,8 +24,8 @@
     <string name="login_failed">"Login failed"</string>
     <string name="resent_email"><u>Resent Email</u></string>
     <string name="default_notification_channel_id">ws_notification_channel</string>
-    <string name="server_key">AAAAvlS1KFA:APA91bEHQDKBB-IIoH_rMxsYoAcPyuEHkhE3Z_XMuQmOMn965EQ00jr2d30ZysV5nxhYXP2-uMkLxu6FSfUDrIUsbGgWUn5FV-oiEOXX-AdK0-2UnIG7whLESVFHrPzxVB-7j6mxgF9L</string>
-    <string name="map_key">AIzaSyDs1jRlStSnXXKu2HECAHxRhYMDrZNQIoE</string>
+    <string name="server_key">AAAAhARPWRM:APA91bGMwRQuLdPd2kRKD6a98I9Hxb1JHSYqxf4Few2ZId8pVoLDPJ0TTfvyKdoQhLZWjWdUcvwR-fZQECe9aSFFvmgol_FGTz25DNct-syG3KbSKXBvm1aHJJYH3mmGBonAPB0mDMsz</string>
+    <string name="map_key">AIzaSyDiuqMXYRDpEW3WXJiNaFNZ91Oc0dJ5wUw</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

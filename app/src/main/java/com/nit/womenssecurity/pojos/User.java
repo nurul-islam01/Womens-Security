@@ -8,6 +8,7 @@ public class User implements Serializable {
     private String fullName;
     private String email;
     private String phone;
+    private String photo;
 
     public User() {}
 
@@ -50,6 +51,14 @@ public class User implements Serializable {
         this.phone = phone;
     }
 
+    public String getPhoto() {
+        return photo;
+    }
+
+    public void setPhoto(String photo) {
+        this.photo = photo;
+    }
+
     @Override
     public String toString() {
         return "User{" +
@@ -57,6 +66,7 @@ public class User implements Serializable {
                 ", fullName='" + fullName + '\'' +
                 ", email='" + email + '\'' +
                 ", phone='" + phone + '\'' +
+                ", photo='" + photo + '\'' +
                 '}';
     }
 }

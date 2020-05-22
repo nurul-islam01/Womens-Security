@@ -17,6 +17,7 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.Menu;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,6 +31,7 @@ import com.nit.womenssecurity.utils.TrackingActivator;
 import com.nit.womenssecurity.utils.WSFirebase;
 import com.nit.womenssecurity.utils.WSNotification;
 import com.nit.womenssecurity.utils.WSPreference;
+import com.squareup.picasso.Picasso;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -44,6 +46,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
+import de.hdodenhof.circleimageview.CircleImageView;
 import me.leolin.shortcutbadger.ShortcutBadger;
 
 public class MainActivity extends AppCompatActivity {
@@ -91,12 +94,8 @@ public class MainActivity extends AppCompatActivity {
             manager.createNotificationChannel(channel);
         }
 
-        FirebaseMessaging.getInstance().subscribeToTopic("updates");
-
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
         mAppBarConfiguration = new AppBarConfiguration.Builder(
                 R.id.nav_home, R.id.nav_profile)
                 .setDrawerLayout(drawer)
@@ -109,13 +108,23 @@ public class MainActivity extends AppCompatActivity {
 
         if (!checkLocationPermission()) {
             permissionDialog();
-        } else if (checkLocationPermission()){
-            if (wsPreference.getTracking() && locationEnabled() && online()) {
-                trackingActivator.startTracking();
-            }
+        } else if (checkLocationPermission() && wsPreference.getTracking()){
+            trackingActivator.startTracking();
         }
 
+        View headerLayout = navigationView.getHeaderView(0);
 
+        TextView nameTV = headerLayout.findViewById(R.id.nameTV);
+        TextView emailTV = headerLayout.findViewById(R.id.emailTV);
+        CircleImageView imageIV = headerLayout.findViewById(R.id.imageIV);
+        if (user != null) {
+            nameTV.setText(user.getFullName());
+            emailTV.setText(user.getEmail());
+            if (user.getPhoto() != null) {
+                Picasso.get().load(user.getPhoto()).placeholder(R.drawable.avater).error(R.drawable.avater)
+                        .into(imageIV);
+            }
+        }
     }
 
     private boolean locationEnabled() {
@@ -152,25 +161,6 @@ public class MainActivity extends AppCompatActivity {
             this.user = wsPreference.getUser();
         }
      }
-
-    private void showLocationDialog() {
-        alertDialog.changeAlertType(SweetAlertDialog.WARNING_TYPE);
-        alertDialog.setTitle("Enabled location");
-        alertDialog.setContentText("Location is required for this app");
-        alertDialog.setConfirmButton("Settings", new SweetAlertDialog.OnSweetClickListener() {
-            @Override
-            public void onClick(SweetAlertDialog sweetAlertDialog) {
-                startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                alertDialog.dismiss();
-            }
-        }).setCancelButton("Cancel", new SweetAlertDialog.OnSweetClickListener() {
-            @Override
-            public void onClick(SweetAlertDialog sweetAlertDialog) {
-                alertDialog.dismiss();
-                Toast.makeText(MainActivity.this, "Application will not working correctly", Toast.LENGTH_SHORT).show();
-            }
-        }).show();
-    }
 
 
     private void permissionDialog() {
@@ -238,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.action_notification:
                 startActivity(new Intent(this, NotificationActivity.class));
+                finish();
                 break;
         }
         return super.onOptionsItemSelected(item);

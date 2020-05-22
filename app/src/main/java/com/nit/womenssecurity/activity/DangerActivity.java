@@ -76,6 +76,8 @@ public class DangerActivity extends AppCompatActivity {
             notifi = new Notifi(id, receiverId, senderId, time, title, category, body, seen);
             setNotifi(notifi);
 
+
+
         } else if (bundle.getSerializable("notification") != null) {
             notifi = (Notifi) bundle.getSerializable("notification");
             setNotifi(notifi);
@@ -98,6 +100,8 @@ public class DangerActivity extends AppCompatActivity {
     }
 
     private void setNotifi(Notifi notifi) {
+        WSFirebase.notifications().child(notifi.getId()).child("seen").setValue(true);
+
         WSFirebase.userLocation().child(notifi.getSenderId()).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {

@@ -151,6 +151,7 @@ public class LocationFragment extends Fragment implements OnMapReadyCallback, Go
     public void trackerLocation(LatLng latLng) {
         this.latLng = latLng;
         if (this.googleMap != null && this.latLng != null && this.user != null) {
+            this.googleMap.clear();
             addMarker();
         }
     }

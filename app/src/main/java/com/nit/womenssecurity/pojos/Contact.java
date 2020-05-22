@@ -1,6 +1,10 @@
 package com.nit.womenssecurity.pojos;
 
-public class Contact {
+import androidx.annotation.NonNull;
+
+import java.io.Serializable;
+
+public class Contact implements Serializable {
 
     private String id;
     private String name;
@@ -37,5 +41,14 @@ public class Contact {
 
     public void setNumber(String number) {
         this.number = number;
+    }
+
+    @Override
+    public String toString() {
+        return "Contact{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", number='" + number + '\'' +
+                '}';
     }
 }

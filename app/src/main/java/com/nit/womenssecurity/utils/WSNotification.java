@@ -24,7 +24,7 @@ public class WSNotification {
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 141, intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.danger_skull)
+                .setSmallIcon(R.drawable.ws_front)
                 .setContentTitle(title)
                 .setContentText(content)
                 .setContentIntent(pendingIntent)
@@ -36,16 +36,15 @@ public class WSNotification {
         managerCompat.notify(1, builder.build());
     }
 
-    public static void showRequired(Context context, String title, String des, int icon) {
+    public static void showRequired(Context context, String title, String des) {
 
         Intent intent = new Intent(context, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 141, intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         Uri notificationSound = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_NOTIFICATION);
 
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(icon)
+                .setSmallIcon(R.drawable.ws_front)
                 .setContentTitle(title)
                 .setContentText(des)
                 .setContentIntent(pendingIntent)

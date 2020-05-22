@@ -29,6 +29,7 @@ import com.nit.womenssecurity.pojos.User;
 import com.nit.womenssecurity.ui.adapter.TrackerContactAdapter;
 import com.nit.womenssecurity.utils.WSFirebase;
 import com.nit.womenssecurity.utils.WSPreference;
+import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +85,10 @@ public class TrackerProfile extends Fragment {
                 nameTV.setText(user.getFullName());
                 emailTV.setText("Email : " + user.getEmail());
                 phoneTV.setText("Phone : " + user.getPhone());
+                if(user.getPhoto() != null) {
+                    Picasso.get().load(user.getPhoto()).placeholder(R.drawable.avater).error(R.drawable.avater)
+                            .into(personCIV);
+                }
 
                 WSFirebase.contacts(user.getId()).addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
