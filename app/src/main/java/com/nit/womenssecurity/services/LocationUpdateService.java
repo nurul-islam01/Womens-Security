@@ -97,6 +97,8 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
     public static final String CATEGORY = "category";
     public static final String DANGER = "danger";
     public static final String NOTIFICATION_ID = "notification_id";
+    public static final String SENT = "SMS_SENT";
+    public static final String DELIVERED = "SMS_DELIVERED";
 
     private Context context;
     private boolean stopService = false;
@@ -225,16 +227,25 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
         List<Contact> contacts = preference.getContacts();
         List<Contact> sendList = new ArrayList<>();
 
+
+
         if (contacts != null) {
             for (Contact contact: contacts) {
                 try {
-                    SmsManager smsManager = SmsManager.getDefault();
-                    smsManager.sendTextMessage(contact.getNumber(), null, user.getFullName() + " is in danger, please help her hurry", null, null);
-                    Toast.makeText(getApplicationContext(), "SMS sent.",
-                            Toast.LENGTH_LONG).show();
-                    sendList.add(contact);
+                    Intent sentIntent = new Intent(SENT);
+                    sentIntent.putExtra("contact", contact);
+                    PendingIntent sentPI = PendingIntent.getBroadcast(this, 0,sentIntent
+                            , 0);
 
-                    Log.d(TAG, "sendSMSToPhone: " + contact.toString());
+                    PendingIntent deliveredPI = PendingIntent.getBroadcast(this,
+                            0, new Intent(DELIVERED), 0);
+                    SmsManager smsManager = SmsManager.getDefault();
+                    smsManager.sendTextMessage(contact.getNumber(), null, user.getFullName() + " is in danger, please help her hurry", sentPI, deliveredPI);
+//                    Toast.makeText(getApplicationContext(), "SMS sent.",
+//                            Toast.LENGTH_LONG).show();
+
+
+                    sendList.add(contact);
 
                 } catch (Exception e) {
                     Toast.makeText(getApplicationContext(),
@@ -245,13 +256,6 @@ public class LocationUpdateService extends Service implements ShakeDetector.List
                 }
             }
 
-            Intent intent = new Intent(MESSAGE_RECEIVER);
-            if (sendList.size() > 0) {
-                intent.putExtra("smssendinglist", (Serializable) sendList);
-            } else {
-                intent.putExtra("error", true);
-            }
-            sendBroadcast(intent);
         }
     }
 

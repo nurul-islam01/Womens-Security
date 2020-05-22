@@ -13,6 +13,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
+import android.telephony.SmsManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -39,11 +41,14 @@ import com.nit.womenssecurity.ui.adapter.ContactAdapter;
 import com.nit.womenssecurity.utils.TrackingActivator;
 import com.nit.womenssecurity.utils.WSPreference;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import cn.pedant.SweetAlert.SweetAlertDialog;
 
 import static android.content.Context.LOCATION_SERVICE;
+import static com.nit.womenssecurity.services.LocationUpdateService.DELIVERED;
+import static com.nit.womenssecurity.services.LocationUpdateService.SENT;
 
 
 public class HomeFragment extends Fragment {
@@ -70,7 +75,8 @@ public class HomeFragment extends Fragment {
     private Activity activity;
     private SweetAlertDialog alertDialog;
     private LocationManager lm;
-
+    private List<Contact> contacts = new ArrayList<>();
+    private ContactAdapter adapter;
 
     @Override
     public void onStart() {
@@ -81,12 +87,7 @@ public class HomeFragment extends Fragment {
     }
 
 
-    @Override
-    public void onStop() {
-        super.onStop();
-        context.unregisterReceiver(mMessageReceiver);
-        context.unregisterReceiver(notificationReceive);
-    }
+
 
     @SuppressLint("ClickableViewAccessibility")
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -100,6 +101,9 @@ public class HomeFragment extends Fragment {
         contactRC = root.findViewById(R.id.contactRC);
         notificationCountTV = root.findViewById(R.id.notificationCountTV);
         smsNotSentTV = root.findViewById(R.id.smsNotSentTV);
+
+        adapter = new ContactAdapter(context);
+        contactRC.setAdapter(adapter);
 
         pressingBT.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -131,18 +135,92 @@ public class HomeFragment extends Fragment {
             }
         });
 
-
-
         return root;
+    }
+
+    private void setMessageRecycler() {
+
+        if (contacts.size() > 0) {
+            adapter.setContent(contacts);
+            contactRC.setVisibility(View.VISIBLE);
+            progressBar.setVisibility(View.GONE);
+            progressText.setVisibility(View.GONE);
+        } else {
+            smsNotSentTV.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        context.registerReceiver(mMessageReceiver, new IntentFilter(MESSAGE_RECEIVER));
         context.registerReceiver(notificationReceive, new IntentFilter(NOTIFICATION_SENDS));
+        context.registerReceiver(smsSentBR, new IntentFilter(SENT));
+        context.registerReceiver(deliveredBR, new IntentFilter(DELIVERED));
 
     }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        context.unregisterReceiver(notificationReceive);
+        context.unregisterReceiver(smsSentBR);
+        context.unregisterReceiver(deliveredBR);
+    }
+
+    BroadcastReceiver smsSentBR = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (getResultCode()) {
+                case Activity.RESULT_OK:
+                    Toast.makeText(context, "SMS sent",
+                            Toast.LENGTH_SHORT).show();
+                    if (intent.getSerializableExtra("contact") != null) {
+                        Contact contact = (Contact) intent.getSerializableExtra("contact");
+                        contacts.add(contact);
+                    }
+                    break;
+                case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                    Toast.makeText(context, "Generic failure",
+                            Toast.LENGTH_SHORT).show();
+                    smsNotSentTV.setText("SMS Generic failure");
+                    break;
+                case SmsManager.RESULT_ERROR_NO_SERVICE:
+                    Toast.makeText(context, "No service",
+                            Toast.LENGTH_SHORT).show();
+                    smsNotSentTV.setText("SMS No service");
+                    break;
+                case SmsManager.RESULT_ERROR_NULL_PDU:
+                    Toast.makeText(context, "Null PDU",
+                            Toast.LENGTH_SHORT).show();
+                    smsNotSentTV.setText("SMS Null PDU");
+                    break;
+                case SmsManager.RESULT_ERROR_RADIO_OFF:
+                    Toast.makeText(context, "Radio off",
+                            Toast.LENGTH_SHORT).show();
+                    smsNotSentTV.setText("SMS Radio off");
+                    break;
+
+            }
+
+            setMessageRecycler();
+        }
+    };
+    
+    BroadcastReceiver deliveredBR = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (getResultCode()) {
+                case Activity.RESULT_OK:
+                    Toast.makeText(context, "SMS delivered",
+                            Toast.LENGTH_SHORT).show();
+                    break;
+                case Activity.RESULT_CANCELED:
+                    Toast.makeText(context, "SMS not delivered",
+                            Toast.LENGTH_SHORT).show();
+                    break;
+            }
+        }
+    };
 
 
     private boolean isLocationServiceEnable() {
@@ -174,26 +252,6 @@ public class HomeFragment extends Fragment {
             }
         }).show();
     }
-
-   BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getSerializableExtra("smssendinglist") != null) {
-                List<Contact> smsReceiverList = (List<Contact>) intent.getSerializableExtra("smssendinglist");
-                ContactAdapter adapter = new ContactAdapter(context, smsReceiverList);
-                contactRC.setAdapter(adapter);
-                contactRC.setVisibility(View.VISIBLE);
-                progressBar.setVisibility(View.GONE);
-                progressText.setVisibility(View.GONE);
-
-            }else if (intent.getBooleanExtra("error", true)) {
-                Toast.makeText(context, "Message Sending failed", Toast.LENGTH_SHORT).show();
-                smsNotSentTV.setVisibility(View.VISIBLE);
-                smsNotSentTV.setText("Message Sending failed");
-            }
-
-        }
-    };
 
     BroadcastReceiver notificationReceive = new BroadcastReceiver() {
         @Override

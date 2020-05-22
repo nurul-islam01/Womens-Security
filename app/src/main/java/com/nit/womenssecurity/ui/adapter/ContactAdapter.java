@@ -39,11 +39,15 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ViewHold
     private SweetAlertDialog alertDialog;
     private WSPreference preference;
 
-    public ContactAdapter(Context context, List<Contact> contacts) {
+    public ContactAdapter(Context context) {
         this.context = context;
-        this.contacts = contacts;
         alertDialog = new SweetAlertDialog(context);
         preference = new WSPreference(context);
+    }
+
+    public void setContent(List<Contact> contacts) {
+        this.contacts = contacts;
+        notifyDataSetChanged();
     }
 
     @NonNull

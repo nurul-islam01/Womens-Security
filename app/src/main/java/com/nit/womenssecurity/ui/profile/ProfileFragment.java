@@ -391,7 +391,8 @@ public class ProfileFragment extends Fragment {
                     }
                     if (contacts.size() > 0) {
                         preference.saveContacts(contacts);
-                        adapter = new ContactAdapter(context, contacts);
+                        adapter = new ContactAdapter(context);
+                        adapter.setContent(contacts);
                         contactRC.setAdapter(adapter);
                         noContactTV.setVisibility(View.GONE);
                     } else {
